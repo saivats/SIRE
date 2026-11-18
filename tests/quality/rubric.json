@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "scale": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "dimensions": {
+    "source_fidelity": {
+      "0": "Fabricated or wrong-scope source or unsupported central claim",
+      "1": "Major claims lack or misuse evidence",
+      "2": "Some claims traceable; material gaps remain",
+      "3": "All material claims traceable with minor noncritical omissions",
+      "4": "All claims source-entailing and scoped; observations, inference and user assertions distinguished"
+    },
+    "numeric_correctness": {
+      "0": "Material value/unit/statistic invented or wrong",
+      "1": "Major extraction/context errors",
+      "2": "Mostly correct with unresolved precision/window gaps",
+      "3": "Correct values/units/windows; minor presentation issue",
+      "4": "Independently verified values, units, precision, dates, windows and locators; missing data explicit"
+    },
+    "asset_time_correctness": {
+      "0": "Wrong asset/case or future evidence used",
+      "1": "Major unresolved scope drift",
+      "2": "Partial scope, ambiguous linkage not fully handled",
+      "3": "Correct scope with minor trace omission",
+      "4": "All asset/case/time/availability links verified; ambiguity explicitly resolved or clarified"
+    },
+    "mechanism_completeness": {
+      "0": "Truncated/incoherent or unsupported confirmed cause",
+      "1": "Incomplete causal pathway or incompatible mechanism",
+      "2": "Complete sentence but weak pathway/assumptions",
+      "3": "Coherent tentative pathway with specific limits",
+      "4": "Coherent evidence-bounded alternatives, meaningful assumptions and discriminating checks"
+    },
+    "contradictions_unknowns": {
+      "0": "Conceals contradiction or invents certainty",
+      "1": "Major conflicting/missing evidence omitted",
+      "2": "Some conflicts/unknowns identified but uneven",
+      "3": "Material conflicts/unknowns explicit",
+      "4": "Both sides sourced, unknown distinguished from false, no unjustified resolution"
+    },
+    "diagnostic_usefulness": {
+      "0": "Misleading or unsafe advice",
+      "1": "Generic or irrelevant next steps",
+      "2": "Some useful steps without discrimination",
+      "3": "Relevant bounded next checks tied to uncertainty",
+      "4": "Prioritized discriminating evidence collection; appropriate professional boundary and no equipment commands"
+    },
+    "clarity": {
+      "0": "Unintelligible or materially misleading",
+      "1": "Dense jargon or confusing structure",
+      "2": "Understandable with effort",
+      "3": "Simple answer then useful technical detail",
+      "4": "Concise plain explanation preserves technical meaning, audience and uncertainty"
+    },
+    "latency_brevity": {
+      "0": "Timeout/no usable answer or severe verbosity",
+      "1": "Material measured slowdown or excessive prefacing",
+      "2": "Usable with redundant text or some measured regression",
+      "3": "Useful text promptly; no material regression under predefined paired budget",
+      "4": "Best concise informative answer within predeclared paired latency budget; no loss of critical detail"
+    }
+  },
+  "not_applicable": "Omit dimension only if specified in independently reviewed case key before scoring; document reason. Never replace unmeasured latency with 4.",
+  "review": "Two blinded reviewers; retain separate scores and disagreement; adjudicate without overwriting original annotations.",
+  "critical_gate": "Any critical factual error fails that case independently of ordinal mean.",
+  "latency": "Capture actual first nonempty answer delta and full response. Agree material-regression budget before trial; no estimated latency or generic accuracy score."
+}

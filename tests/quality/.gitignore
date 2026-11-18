@@ -1,0 +1,3 @@
+# Local answer keys, traces and private fixtures belong outside this source tree.
+local/
+__pycache__/
