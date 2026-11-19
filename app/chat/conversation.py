@@ -21,9 +21,19 @@ def fast_route(question: str) -> str | None:
         POLICY["social_pattern"], text, re.I
     ):
         return "social"
-    if re.search(r"\b(?:your|sire(?:'s)?)\s+hypothes(?:is|es)\s+engine\b", text, re.I):
-        if re.search(r"\b(?:how|what|explain|describe)\b", text, re.I):
-            return "hypotheses"
+    # Recognize subsystem questions regardless of where "SIRE" appears in
+    # the sentence. Machine-specific diagnostic questions must still follow
+    # the evidence-grounded path rather than application documentation.
+    if (
+        not engineering_question(text)
+        and re.search(r"\bhypothes(?:is|es)[\s-]+engine\b", text, re.I)
+        and re.search(
+            r"\b(?:what|how|explain|describe|purpose|role|function|used|work|does)\b",
+            text,
+            re.I,
+        )
+    ):
+        return "hypotheses"
     if (
         not engineering_question(text)
         and re.search(r"\bsire\b", text, re.I)

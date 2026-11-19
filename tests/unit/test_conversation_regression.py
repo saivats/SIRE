@@ -69,11 +69,44 @@ def test_capabilities_use_actual_resolvable_manifest_without_inventing_the_acron
     assert fast_route("Can you explain to me what SIRE is all about?") == "overview"
     assert fast_route("How does your hypothesis engine work?") == "hypotheses"
     assert fast_route("What does SIRE recommend for bearing damage?") is None
+    answer, citation = describe(store, "hypotheses")
+    assert "SIRE proposes alternative mechanisms" in answer
+    assert citation.locator == "config/capabilities.yaml / hypotheses"
     text, evidence = describe(store, "overview")
     resolved = Ledger(store).resolve(evidence.id)["evidence"]
     assert resolved["pointer"]["path"] == "config/capabilities.yaml"
     assert resolved["observation"]["text"] in text
     assert "Simulated Intelligent Reasoning Engine" not in text
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "What is hypothesis engine used for in SIRE?",
+        "What is SIRE's hypothesis engine?",
+        "What is the purpose of the hypothesis engine in SIRE?",
+        "How does your hypothesis engine work?",
+        "Explain SIRE hypothesis engine",
+        "Describe the hypothesis engine",
+        "What does the hypothesis engine do?",
+        "How does the hypothesis-engine work in SIRE?",
+    ],
+)
+def test_hypothesis_engine_questions_select_specific_documentation(question):
+    assert fast_route(question) == "hypotheses"
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "What does SIRE's hypothesis engine say about bearing damage?",
+        "What is the measured vibration of the pump?",
+        "What does SIRE recommend for bearing failure?",
+        "What are the hypotheses for my machine?",
+    ],
+)
+def test_diagnostic_questions_do_not_route_to_capabilities_manifest(question):
+    assert fast_route(question) is None
 
 
 def test_failed_and_unpaired_history_cannot_contaminate_new_prompts():
@@ -156,7 +189,12 @@ def test_social_and_documented_answers_bypass_models_even_after_failed_source_tu
     async def run():
         service = ChatService(store, provider)
         for index, question in enumerate(
-            ["hi", "What is SIRE?", "How does your hypothesis engine work?"]
+            [
+                "hi",
+                "What is SIRE?",
+                "How does your hypothesis engine work?",
+                "What is hypothesis engine used for in SIRE?",
+            ]
         ):
             events = [
                 e
