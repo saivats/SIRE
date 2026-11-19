@@ -49,6 +49,9 @@ measurement_channel_aliases:
   upstream_pressure: [suction pressure, upstream pressure]
   downstream_pressure: [discharge pressure, downstream pressure]
   bearing_temp: [bearing temperature]
+  surface_temp: [surface temperature]
+  discharge_temp: [discharge temperature]
+  pressure_drop: [pressure drop]
   oil_pressure: [oil pressure]
   current: [motor current]
   speed: [shaft speed]
@@ -57,6 +60,11 @@ measurement_channel_aliases:
 # Explicit header-unit contract; these uploaded channels never become NASA inputs.
 measurement_wide_fields:
   vibration_mm_s: {channel: vibration, unit: mm/s RMS}
+  vibration_mm_s_rms: {channel: vibration, unit: mm/s RMS}
+  surface_temp_c: {channel: surface_temp, unit: degC}
+  pressure_drop_bar: {channel: pressure_drop, unit: bar}
+  discharge_temp_c: {channel: discharge_temp, unit: degC}
+  discharge_pressure_bar: {channel: downstream_pressure, unit: bar}
   bearing_temp_c: {channel: bearing_temp, unit: degC}
   motor_current_a: {channel: current, unit: A}
   oil_pressure_bar: {channel: oil_pressure, unit: bar}
@@ -68,3 +76,4 @@ measurement_wide_fields:
   ambient_temp_c: {channel: ambient_temp, unit: degC}
   shaft_speed_rpm: {channel: speed, unit: rpm}
   filter_dp_bar: {channel: filter_dp, unit: bar}
+

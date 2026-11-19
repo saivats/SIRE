@@ -55,7 +55,10 @@ def parse(content: bytes, suffix: str) -> list[dict] | None:
         return None
     try:
         if suffix == ".csv":
-            rows = list(csv.DictReader(io.StringIO(content.decode("utf-8-sig"))))
+            reader = csv.DictReader(io.StringIO(content.decode("utf-8-sig")))
+            if reader.fieldnames and len(reader.fieldnames) != len(set(reader.fieldnames)):
+                raise ValueError("Ambiguous duplicate column names")
+            rows = list(reader)
         else:
             raw = json.loads(content.decode("utf-8-sig"))
             rows = raw if isinstance(raw, list) else [raw]
@@ -63,7 +66,8 @@ def parse(content: bytes, suffix: str) -> list[dict] | None:
             return None
         if len(rows) > SETTINGS["max_history_rows"]:
             raise ValueError("Row budget")
-        if not REQUIRED.issubset(rows[0]):
+        wide = not REQUIRED.issubset(rows[0])
+        if wide:
             rows = expand_wide(rows)
             if rows is None:
                 return None
@@ -108,8 +112,8 @@ def parse(content: bytes, suffix: str) -> list[dict] | None:
                     "observed_at": stamp,
                     "value": value,
                     "unit": unit,
-                    "source_row": row.get("source_row", number),
-                    "source_field": row.get("source_field", "value"),
+                    "source_row": row["source_row"] if wide else number,
+                    "source_field": row["source_field"] if wide else "value",
                     "quality": str(row.get("quality", "good")).casefold(),
                     "synthetic": row.get("synthetic", False),
                     "association": "user_declared_unverified",
@@ -129,7 +133,9 @@ def profile(store: Store, conversation_id: str, attachment_id: str) -> dict:
     item = store.attachment(attachment_id, conversation_id)
     from app.evidence.integrity import read_verified
 
-    rows = parse(read_verified(item), Path(item["name"]).suffix.lower())
+    content = read_verified(item)
+    suffix = Path(item["name"]).suffix.lower()
+    rows = parse(content, suffix)
     if rows is None:
         raise SireError(
             "measurement_schema_required",
@@ -159,7 +165,17 @@ def profile(store: Store, conversation_id: str, attachment_id: str) -> dict:
             row["value"] for row in recent
         )
         delta = after - before
+        good = [row for row in samples if row["quality"] == "good"]
+        first, last = good[0], good[-1]
+        change = last["value"] - first["value"]
+        percent = change / first["value"] * 100 if first["value"] else None
         statistics = {
+            "good_count": len(good),
+            "full_mean": mean(row["value"] for row in good),
+            "first_value": first["value"],
+            "last_value": last["value"],
+            "endpoint_delta": change if math.isfinite(change) else None,
+            "endpoint_percent_delta": percent if percent is not None and math.isfinite(percent) else None,
             "count": len(samples),
             "baseline_mean": before,
             "recent_mean": after,
@@ -185,7 +201,7 @@ def profile(store: Store, conversation_id: str, attachment_id: str) -> dict:
             available_at=item["created_at"],
             unit=unit,
             asset_id=asset,
-            method="uploaded_descriptive_first24_recent6_v1",
+            method="uploaded_descriptive_series_and_windows_v2",
             quality="user_supplied_units_and_association_unverified",
         )
         summaries.append(
@@ -196,6 +212,8 @@ def profile(store: Store, conversation_id: str, attachment_id: str) -> dict:
                 **statistics,
                 "evidence_id": record.id,
                 "series": samples[-300:],
+                "first_sample": first,
+                "last_sample": last,
                 "baseline_window": {
                     "start": baseline[0]["observed_at"],
                     "end": baseline[-1]["observed_at"],
@@ -207,7 +225,23 @@ def profile(store: Store, conversation_id: str, attachment_id: str) -> dict:
                 "series_scope": "Last300 source readings at most; exact full snapshot remains available by evidence ID.",
             }
         )
+    missing = []
+    if suffix == ".csv":
+        reader = csv.DictReader(io.StringIO(content.decode("utf-8-sig")))
+        headers = reader.fieldnames or []
+        if {"asset_id", "timestamp_utc"}.issubset(headers) and not REQUIRED.issubset(headers):
+            fields = [name for name in headers if name in SETTINGS["measurement_wide_fields"]]
+            counts = defaultdict(int)
+            for row in reader:
+                for field in fields:
+                    if row.get(field) in ("", None):
+                        counts[(row["asset_id"].strip(), field)] += 1
+            missing = [
+                {"asset_id": asset, "source_field": field, "blank_count": count}
+                for (asset, field), count in sorted(counts.items())
+            ]
     return {
+        "missing_cells": missing,
         "groups": summaries,
         "evidence_ids": [row["evidence_id"] for row in summaries],
         "source_type": "real_uploaded",
@@ -247,3 +281,4 @@ def render_profiles(profiles: list[dict]) -> str:
         + "\n".join(lines[2:])
         + "\n\nExact window timestamps and original row IDs are available in the source inspector.\n\n"
     )
+

@@ -46,6 +46,9 @@ class Claim(BaseModel):
             "recent_mean",
             "delta",
             "percent_delta",
+            "full_mean",
+            "endpoint_delta",
+            "endpoint_percent_delta",
             "count",
             "rul_cycles",
         ]
@@ -174,13 +177,11 @@ def verify_claim(claim: Claim, ledger: Ledger) -> Verification:
             if claim.category == "derived_statistic" and claim.statistic == "count"
             else record.get("unit") or rows[0].get("unit")
         )
-        percent_delta = (
-            claim.category == "derived_statistic" and claim.statistic == "percent_delta"
-        )
-        if claim.unit is None or (
-            claim.unit != unit
-            and not (percent_delta and claim.unit in {"%", "percent"})
-        ):
+        percent_delta = claim.category == "derived_statistic" and claim.statistic in {
+            "percent_delta", "endpoint_percent_delta"
+        }
+        allowed_units = {"%", "percent"} if percent_delta else {unit}
+        if claim.unit is None or claim.unit not in allowed_units:
             return result(
                 "contradicted",
                 "Claim unit does not match the cited quantity; no implicit conversion",
@@ -264,6 +265,12 @@ def verify_claim(claim: Claim, ledger: Ledger) -> Verification:
                 statistics["percent_delta"] = (
                     statistics["delta"] / statistics["baseline_mean"] * 100
                 )
+            good = [r for r in rows if r.get("quality", "good") == "good" and r.get("value") is not None]
+            statistics["full_mean"] = mean(float(r["value"]) for r in good)
+            first = float(good[0]["value"])
+            statistics["endpoint_delta"] = float(good[-1]["value"]) - first
+            if first:
+                statistics["endpoint_percent_delta"] = statistics["endpoint_delta"] / first * 100
             if claim.statistic in statistics:
                 values.append(float(statistics[claim.statistic]))
     if not values:
@@ -398,3 +405,4 @@ def verify_profile_claims(profiles: list[dict], ledger: Ledger) -> list[dict]:
                         503,
                     )
     return checks
+
