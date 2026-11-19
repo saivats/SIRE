@@ -90,10 +90,14 @@ def restore_text(
 ) -> str:
     """Reject unknown source citations and expand validated short references without inventing IDs."""
     known = set(mapping.values()) | (additional_known_ids or set())
-    for identifier in re.findall(
-        r"\[((?:(?:EV|SRC):[a-fA-F0-9]{16,64})|(?:[a-fA-F0-9]{24})|(?:(?:prediction|user):[a-fA-F0-9]{32})|(?:[a-fA-F0-9]{32}:schema))\]",
-        text,
-    ):
+    # Inspect the entire bracket, so malformed IDs and mixed alias/ID lists
+    # cannot disappear during alias expansion.
+    for bracket in re.findall(r"\[([^\[\]\n]*)\]", text):
+        identifier = bracket.strip()
+        canonical = re.search(r"\b(?:EV|SRC|prediction|user):", identifier, re.I)
+        legacy = re.fullmatch(r"[a-fA-F0-9]{24}|[a-fA-F0-9]{32}:schema", identifier)
+        if not canonical and not legacy:
+            continue
         if identifier not in known:
             raise SireError(
                 "unsupported_source_reference",
@@ -115,13 +119,14 @@ def restore_text(
         references = re.findall(r"\bE\d+\b", match.group(1), re.I)
         if not references:
             return match.group()
-        if "-" in match.group(1):
+        if not re.fullmatch(r"\s*E\d+(?:\s*[,;]\s*E\d+)*\s*", match.group(1), re.I):
             raise SireError(
                 "unsupported_source_reference",
-                "Model returned an unsupported citation range; commentary withheld.",
+                "Model returned an unsupported citation list; commentary withheld.",
                 503,
             )
         return ", ".join("[" + reference.upper() + "]" for reference in references)
 
     text = re.sub(r"\[([^\]]*\bE\d+\b[^\]]*)\]", separate, text, flags=re.I)
     return re.sub(r"\[(E\d+)\]", expand, text, flags=re.I)
+

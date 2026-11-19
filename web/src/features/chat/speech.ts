@@ -1,6 +1,7 @@
 /** Local inline speech: display text only, bounded chunks, cancellation and honest playback state. */
 export function safeSpeechText(text:string):string {
   return text.replace(/```[\s\S]*?```/g,' ').replace(/~~~[\s\S]*?~~~/g,' ')
+    .replace(/^\s*\|[^\n]*\|[ \t]*$/gm,' ')
     .replace(/\[(?:(?:EV|SRC|HYP):[^\]]+|[a-f\d]{24}|[a-f\d]{32}(?::(?:transcript|schema|visual:\d+))?|(?:user|prediction):[a-f\d]{32}|E\d+)\]/gi,' ')
     .replace(/\[([^\]]+)\]\([^)]+\)/g,'$1').replace(/https?:\/\/\S+|www\.\S+/gi,' ')
     .replace(/\b(?:EV|SRC|HYP):[a-f\d]{16,}\b/gi,' ').replace(/<[^>]+>/g,' ')

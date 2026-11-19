@@ -53,6 +53,7 @@ def number_words(value: str) -> str:
 def display_safe_text(text: str) -> str:
     """Exclude code, URLs and citation identifiers from locally spoken display text."""
     text = re.sub(r"```[\s\S]*?```|~~~[\s\S]*?~~~", " ", text)
+    text = re.sub(r"^[ \t]*\|[^\n]*\|[ \t]*$", " ", text, flags=re.MULTILINE)
     text = re.sub(
         r"\[(?:EV:|SRC:|HYP:)[^\]]+\]|\[(?:[a-fA-F0-9]{24}|[a-fA-F0-9]{32}(?::(?:transcript|schema|visual:\d+))?|(?:prediction|user):[a-fA-F0-9]{32}|E\d+)\]",
         " ",
@@ -112,3 +113,4 @@ def spoken_text(text: str, lexicon: Path) -> tuple[str, list[str]]:
             422,
         )
     return " ".join(output), warnings
+

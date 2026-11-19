@@ -14,6 +14,7 @@ from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
 
 from app.core.config import SETTINGS
+from app.core.prompt_policy import GROUNDING
 from app.core.errors import SireError
 from app.providers.resources import SCHEDULER
 from app.orchestration.cancellation import run_cancellable
@@ -31,7 +32,7 @@ VISION_INSTRUCTIONS = (
     "Classify the visible presentation as photograph, schematic, plot, other or unclear. This does not authenticate its physical origin. "
     "component_guess names visible equipment or a part, not the image presentation category. "
     "Transcribe labels or gauge markings only when actually legible; otherwise leave readable_text empty. Never guess readings. "
-    "Return only the schema, no invented fault or numeric estimate."
+    "Return only the schema, no invented fault or numeric estimate. " + GROUNDING
 )
 
 
@@ -378,3 +379,4 @@ async def analyze_image_async(
         messages, VisionResult, SETTINGS["vision_model"], cancelled or asyncio.Event()
     )
     return _image_result(result)
+

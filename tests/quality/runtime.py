@@ -25,6 +25,7 @@ from .protocol import digest, file_digest, fixture_status, write_new
 PROMPT_FILES = (
     "config/app.yaml", "config/conversation.yaml", "config/hypotheses.yaml",
     "config/capabilities.yaml", "config/retrieval.yaml", "config/media.yaml",
+    "app/core/prompt_policy.py",
     "app/chat/service.py", "app/providers/adapter.py", "app/providers/ollama.py",
     "app/investigation/engine.py", "app/evidence/context.py",
     "app/orchestration/tools.py", "app/evidence/verification.py",

@@ -1,4 +1,4 @@
-version: '4.5.1'
+version: '4.5.2'
 history_turns: 6
 without_sources_pattern: '\b(?:without|no)\s+(?:(?:machine[- ]specific|external|supplied|case[- ]specific)\s+)?(?:evidence|measurements|sources)\b'
 explicit_source_reference_pattern: '\b(?:attached|uploaded|previous|earlier|saved|those|these|document|manual|handbook|records?|based on|according to)\b'
@@ -14,4 +14,6 @@ plain_system: >-
   No external sources are supplied for this turn. Do not invent citations, source
   aliases, tool actions, measurements, live access, or facts about this application's
   implementation. Explain general concepts as general knowledge; ask for evidence
-  before making claims about a particular machine. Do not invent an expansion of SIRE.
+  before making claims about a particular machine. If a new question changes the asset,
+  keep prior observations attributed to their original asset. Do not invent an expansion of SIRE.
+

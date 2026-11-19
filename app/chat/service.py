@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from app.core.config import SETTINGS
+from app.core.prompt_policy import GROUNDING, VERSION as PROMPT_VERSION
 from app.core.errors import SireError
 from app.investigation.engine import investigate
 from app.investigation.schemas import Case, EvidenceItem
@@ -1050,11 +1051,12 @@ class ChatService:
                                 "reference_map": references,
                                 "history_turns_sent": len(turns),
                             }
+                            metadata["prompt_policy"] = PROMPT_VERSION if validate_sources else CONVERSATION_POLICY["version"]
                             messages = [
                                 {
                                     "role": "system",
                                     "content": (
-                                        SYSTEM
+                                        SYSTEM + " " + GROUNDING
                                         if validate_sources
                                         else CONVERSATION_POLICY["plain_system"]
                                     ),
@@ -1296,3 +1298,4 @@ class ChatService:
             "metadata": metadata,
             "assistant_message_id": assistant_message_id,
         }
+
