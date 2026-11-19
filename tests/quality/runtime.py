@@ -27,10 +27,12 @@ PROMPT_FILES = (
     "config/capabilities.yaml", "config/retrieval.yaml", "config/media.yaml",
     "app/chat/service.py", "app/providers/adapter.py", "app/providers/ollama.py",
     "app/investigation/engine.py", "app/evidence/context.py",
-    "app/orchestration/tools.py",
+    "app/orchestration/tools.py", "app/evidence/verification.py",
+    "app/investigation/narrative.py", "app/knowledge/case_memory.py",
+    "app/orchestration/workspace.py", "app/evidence/measurements.py",
 )
 REQUEST_FIELDS = {"content", "mode", "voice_response", "linked_asset", "model"}
-UPLOAD_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".csv", ".pdf", ".txt", ".md", ".json"}
+UPLOAD_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".csv", ".pdf", ".txt", ".md", ".json", ".xlsx"}
 
 
 def loopback(url: str) -> str:
@@ -249,7 +251,7 @@ def stream_chat(base: str, body: dict, event_path: Path) -> dict:
 
 def validate_plan(plan: dict, cases: dict, fixture_root: Path) -> list[str]:
     """Block undeclared cases, leaked oracle fields and unsupported execution paths."""
-    allowed = {"case_id", "variant", "repetition", "assets", "requests", "review_status", "reviewer"}
+    allowed = {"case_id", "instance_id", "variant", "repetition", "assets", "requests", "review_status", "reviewer"}
     if set(plan) - allowed:
         raise ValueError("Execution plan must not contain answers or undeclared fields")
     case = cases[plan["case_id"]]
@@ -269,7 +271,15 @@ def validate_plan(plan: dict, cases: dict, fixture_root: Path) -> list[str]:
             raise ValueError("Audio/video and unsupported formats require separate isolated manual preparation")
     problems = fixture_status(plan, fixture_root)
     roles = {a["role"] for a in plan.get("assets", [])}
-    for role in set(case.get("required_asset_roles", [])) - roles:
+    required_roles = case.get("required_asset_roles", [])
+    if plan.get("instance_id"):
+        from .development import instance_mapping
+        mapping = instance_mapping()
+        instance = mapping["instances"].get(plan["instance_id"])
+        if not instance or instance["primary_case"] != plan["case_id"]:
+            raise ValueError("Unknown or incorrectly mapped development instance")
+        required_roles = mapping["required_asset_roles"]
+    for role in set(required_roles) - roles:
         problems.append("pending_fixtures:" + role)
     return problems
 
@@ -280,32 +290,45 @@ def run_plan(root: Path, output: Path, plan: dict, cases: dict,
     problems = validate_plan(plan, cases, fixture_root)
     output.mkdir(parents=True, exist_ok=False)
     inputs = {k: plan.get(k) for k in ("case_id", "variant", "assets", "requests")}
+    if plan.get("instance_id"):
+        inputs["instance_id"] = plan["instance_id"]
     record = {"schema_version": 1, "case_id": plan["case_id"],
               "variant": plan.get("variant", "default"), "repetition": plan.get("repetition", 1),
               "input_digest": digest(inputs), "inputs": inputs,
               "execution_status": "pending", "text": "", "pending": problems,
               "cache_condition": "fresh_application_state; Ollama residency recorded, not forced"}
+    if plan.get("instance_id"):
+        record["instance_id"] = plan["instance_id"]
     write_new(output / "plan.json", plan)
     if problems:
         write_new(output / "record.json", record)
         return record
     try:
+        record["stage"] = "runtime_preflight"
         runtime = capture(root, ollama_url)
         write_new(output / "runtime.json", runtime)
         record["runtime_digest"] = digest(runtime)
         record["prompt_digest"] = digest(runtime["config_and_prompt_files"])
         record["selected_model_digests"] = require_local_models(runtime, plan)
         record["model_digest"] = digest(record["selected_model_digests"])
+        record["stage"] = "application_execution"
         with isolated_server(root, output, ollama_url) as base:
+            record["qa_url"] = base
             conversation = api(base, "/api/v1/conversations", {"title": "quality:" + plan["case_id"]})
             cid = conversation["id"]
-            attachments = [upload(base, cid, fixture_root / item["path"]) for item in plan.get("assets", [])]
+            attachments = []
+            record["attachments"] = attachments
+            for index, item in enumerate(plan.get("assets", []), 1):
+                receipt = upload(base, cid, fixture_root / item["path"])
+                attachments.append(receipt)
+                write_new(output / f"attachment-{index}.json", receipt)
             write_new(output / "attachments.json", attachments)
             turns = []
             for i, request in enumerate(plan["requests"]):
                 body = dict(request, conversation_id=cid, request_id=uuid.uuid4().hex,
                             attachment_ids=[a["id"] for a in attachments])
                 turn = stream_chat(base, body, output / f"turn-{i+1}.sse.jsonl")
+                turn["request"] = body
                 turns.append(turn)
                 write_new(output / f"turn-{i+1}.json", turn)
                 if turn["execution_status"] != "complete":
@@ -318,9 +341,39 @@ def run_plan(root: Path, output: Path, plan: dict, cases: dict,
                 record["delivery_mismatch"] = True
                 record["execution_status"] = "delivery_mismatch"
             record["providers"] = api(base, "/api/v1/providers")
+            record.update(capture_evidence_and_traces(base, turns, attachments))
             record["ollama_after"] = api(ollama_url, "/api/ps")
     except Exception as exc:
-        record["execution_status"] = "error"
+        record["execution_status"] = "blocked_runtime" if record.get("stage") == "runtime_preflight" else "error"
+        if record["execution_status"] == "blocked_runtime":
+            record["model_inference_executed"] = False
         record["error"] = {"exception": type(exc).__name__, "detail": str(exc)}
     write_new(output / "record.json", record)
     return record
+
+
+def capture_evidence_and_traces(base: str, turns: list[dict], attachments: list[dict]) -> dict:
+    """Resolve real IDs through the original read-only APIs; preserve resolution errors."""
+    identifiers, run_ids, activity = set(), set(), []
+    for receipt in attachments:
+        identifiers.update(receipt.get("metadata", {}).get("evidence_ids", []))
+    for turn in turns:
+        metadata = (turn.get("done") or {}).get("metadata", {})
+        identifiers.update(e["id"] for e in metadata.get("evidence", []) if e.get("id"))
+        identifiers.update(re.findall(r"\[((?:EV|SRC):[a-fA-F0-9]{16,64})\]", turn.get("text", "")))
+        run_id = metadata.get("orchestration", {}).get("run_id")
+        if run_id:
+            run_ids.add(run_id)
+        activity.append({"model_activity": metadata.get("model_activity", []),
+                         "provider": metadata.get("provider"),
+                         "validation_profile": metadata.get("validation_profile")})
+    def resolve(identifier: str, path: str) -> dict:
+        try:
+            return {"requested_id": identifier, "response": api(base, path)}
+        except (OSError, ValueError) as exc:
+            return {"requested_id": identifier, "error": {"type": type(exc).__name__, "detail": str(exc)}}
+    return {
+        "source_resolutions": [resolve(i, "/api/v1/evidence/" + urllib.parse.quote(i, safe="")) for i in sorted(identifiers)],
+        "run_traces": [resolve(i, "/api/v1/runs/" + urllib.parse.quote(i, safe="") + "/trace") for i in sorted(run_ids)],
+        "reported_activity": activity,
+    }

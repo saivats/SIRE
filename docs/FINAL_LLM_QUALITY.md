@@ -1,5 +1,137 @@
 # SIRE LLM quality — Phase 2A handoff
 
+## Current checkpoint — post-merge Phase 2A
+
+The source baseline for the next prompt experiment is
+`d7051e449e223846724b722136cbb99695c0e7d0`, upstream PR #1 and fork main.
+Merge `c66fba5a65203065b1b3334534e74bbeccf95a10` has that commit and the
+existing evaluation commit `8e0e1fe863ec9b70078480fa59dd6d36ce917adf` as
+parents, with the evaluation commit first. All 13 original evaluation blobs
+survived this merge unchanged. The current feature SHA can be read from the
+[feature ref](https://api.github.com/repos/saivats/SIRE/git/ref/heads/feature/final-cybers-llm-quality)
+or with `git rev-parse HEAD` after synchronizing. Record that SHA with each run.
+
+**Result.** Four development scenarios are prepared and their numerical keys
+agree with the original CSVs. The 12 question preflights returned
+`blocked_runtime` before starting a QA server. Ollama version, installed tags,
+model digests, residency, GPU execution, response latency and actual answer
+scores were unavailable on this host. No Qwen response was generated.
+
+| Instance | Primary case | Related categories | Original intake and numerical verification |
+|---|---|---|---|
+| D01 | C2 | B, C, E, I | 4 files accepted. Typed profile recognized bearing temperature and flow, 24 values. 22 independent numeric checks passed. |
+| D02 | B1 | B, C, D, I | 4 files accepted. Typed profile recognized bearing temperature, 8 values. 15 checks passed. |
+| D03 | D1 | B, C, D, E | 4 files accepted. Generic CSV intake. 38 checks passed. |
+| D04 | C1 | C, D, E, I | 5 files accepted, including both PDFs. Generic CSV intake. 16 checks passed. |
+
+The development archive contained 25 files. All 17 original evidence uploads
+returned HTTP 200 using the original FastAPI intake in temporary state with its
+startup model probe disabled. All four XLSX files parsed with sheet/row locators.
+The supplied verifier passed D01–D04. Separate Decimal recomputation passed 91
+row-count and statistic checks. Those counts measure the fixture keys. Runtime
+quality requires actual answers and independent review. The typed parser omits
+the pack's vibration header and recognizes none of the D03/D04 measurement
+headers. Baseline and recent means also differ in definition from the pack's
+first-to-last delta and whole-series mean. Preserve originals when measuring
+this limitation. Escalate header aliases to Abhigyan as a separate change.
+
+**Fresh regressions.** 51 original evaluator tests passed after merging.
+The expanded unittest run passed 67 tests (51 original, 10 development integration,
+6 direct backend smoke regressions). Smoke coverage includes signed percentage
+verification, incomplete/mixed-script narrative handling, proposal rejection
+with the original candidate in the trace, prior-case rendering, citation aliases
+and history exclusion. Proposal transport in that unit test is mocked.
+Four existing functions in `tests/unit/test_v3_memory_fleet.py` also passed
+when invoked directly, including the real isolated fleet/case-time test.
+The requested pytest suite could not collect because pytest was unavailable.
+Ruff and Black were also unavailable. The intake test emitted the Starlette
+TestClient/httpx deprecation warning. No production data was used.
+
+**Changed-file inventory for this continuation.** PR #1 brought in
+`Abhigyan.md`, `docs/FINAL_CORE_HANDOFF.md`, `app/evidence/verification.py`,
+`app/investigation/engine.py`, `app/investigation/narrative.py`,
+`app/knowledge/case_memory.py`, `app/orchestration/workspace.py`, and
+`tests/unit/{test_claim_verification,test_v3_2_hypotheses,test_v3_memory_fleet}.py`.
+The evaluation change updates `scripts/eval_quality.py`, `tests/quality/runtime.py`,
+`tests/quality/README.md` and this handoff. It adds `tests/quality/development.py`,
+`tests/quality/development_instances.json`, `tests/quality/test_development.py`
+and `tests/quality/test_merged_backend.py`. Fixture bytes, answer keys, private
+plans, raw receipts and runtime state are held outside Git.
+
+**Backend and Phase 2B decisions.** The merge addresses signed percent deltas,
+numeric window verification, visibly incomplete proposals with auditable rejection,
+and rendering real prior-case comparisons. Semantic support for causal claims,
+citation entailment, ambiguous image links, contradictory records and user-facing
+clarity still require case-level review. First collect the local baseline below
+and score both rubrics. Agree any measurement-header or trace changes with
+Abhigyan and explanation/voice presentation with Kunal. After separate approval,
+change one prompt variable at a time, compare matching inputs and cache conditions,
+and freeze the candidate before custodian-run blind testing.
+
+### Windows execution for D01–D04
+
+Run PowerShell in the existing SIRE checkout. Check that origin is your fork and
+the worktree is clean before switching. Use its existing environment and models.
+In a separate terminal start the installed loopback Ollama daemon if needed.
+
+```powershell
+git remote -v
+git status --short
+git fetch origin
+git switch feature/final-cybers-llm-quality
+git merge --ff-only origin/feature/final-cybers-llm-quality
+git rev-parse HEAD
+git diff d7051e449e223846724b722136cbb99695c0e7d0 -- app config web
+$py = (Resolve-Path .venv/Scripts/python.exe).Path
+$archive = Read-Host 'Full path of the development ZIP'
+$qa = Join-Path $env:LOCALAPPDATA ('SIRE-Quality-' + (Get-Date -Format yyyyMMdd-HHmmss))
+New-Item -ItemType Directory $qa | Out-Null
+$env:SIRE_TEXT_MODEL = 'qwen3:4b-instruct'
+$env:SIRE_VISION_MODEL = 'qwen3-vl:2b-instruct'
+$env:OLLAMA_BASE_URL = 'http://127.0.0.1:11434'
+& $py -B -m unittest discover -s tests/quality -t tests -v
+& $py -B -m pytest -q tests/unit/test_claim_verification.py tests/unit/test_v3_2_hypotheses.py tests/unit/test_v3_memory_fleet.py tests/unit/test_evidence_context.py tests/unit/test_conversation_regression.py
+& $py -B scripts/eval_quality.py prepare-development --archive $archive --out "$qa/bundle" --reviewer $env:USERNAME
+& $py -B "$qa/bundle/original/verify_numeric_gold.py" development
+if ($LASTEXITCODE -ne 0) { throw 'Development numerical verification failed' }
+& $py -B scripts/eval_quality.py capture --out "$qa/runtime.json"
+$tags = (Invoke-RestMethod "$env:OLLAMA_BASE_URL/api/tags").models
+$tags | Select-Object name,digest,details
+$reference = (Get-Content docs/OLLAMA_MODELS.json -Raw | ConvertFrom-Json).models
+foreach ($name in @($env:SIRE_TEXT_MODEL,$env:SIRE_VISION_MODEL)) {
+  $installed = @($tags | Where-Object name -eq $name)
+  $expected = $reference | Where-Object name -eq $name
+  if ($installed.Count -ne 1 -or $installed[0].digest -ne $expected.digest) {
+    throw "Review model identity before collecting the baseline: $name"
+  }
+}
+& $py -B scripts/eval_quality.py run-development --bundle "$qa/bundle" --out "$qa/before"
+Get-Content "$qa/before/summary.json"
+```
+
+Review the prepared questions, input hashes and reviewer attribution before
+execution. For just one scenario append `--instance D01` and use a fresh output
+directory. Each question gets isolated state and an ephemeral loopback QA port.
+Preserve receipts, actual requests, SSE, timings, conversation, source resolutions
+and run traces. Classify each step by its recorded provider and execution/cache
+status. The same question can exercise both a deterministic tool and a model.
+Compare observed model digests, settings, residency, prompt token counts and
+timing only where available. Record blocked plans separately.
+
+After a real run, bind each independent annotation to its record digest. Follow
+the annotation fields in `tests/quality/README.md`. For example:
+
+```powershell
+$record = "$qa/before/D01.q1/record.json"
+& $py -B scripts/eval_quality.py digest $record
+& $py -B scripts/eval_quality.py score-development --bundle "$qa/bundle" --record $record --annotation "$qa/D01.q1.review.json" --out "$qa/D01.q1.score.json"
+```
+
+The sections below preserve the original Phase 2A checkpoint. Its fixture status,
+XLSX restriction, counts and baseline describe that earlier commit.
+
+## Original checkpoint at 8e0e1fe
+
 Status: evaluation infrastructure and baseline preparation only. Production prompt
 tuning and Phase 2B are not started. Approved production baseline:
 `34d41bc46923e1a7d9e089148c3574225aba81fc`.

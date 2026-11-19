@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 
 from quality.protocol import compare, digest, manifest, read_json, score_record, write_new
 from quality.runtime import capture, run_plan
+from quality.development import assess_development, prepare_development
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -41,6 +42,20 @@ def main(argv: list[str] | None = None) -> int:
     paired.add_argument("--after-score", type=Path)
     hashing = commands.add_parser("digest", help="Canonical JSON hash for oracle/annotation binding")
     hashing.add_argument("path", type=Path)
+    dev = commands.add_parser("prepare-development", help="Prepare external D01-D04 inputs and evaluator-only keys")
+    dev.add_argument("--archive", type=Path, required=True)
+    dev.add_argument("--out", type=Path, required=True)
+    dev.add_argument("--reviewer", required=True)
+    dev_run = commands.add_parser("run-development", help="Run each reviewed D01-D04 question in fresh state")
+    dev_run.add_argument("--bundle", type=Path, required=True)
+    dev_run.add_argument("--out", type=Path, required=True)
+    dev_run.add_argument("--instance", choices=["D01", "D02", "D03", "D04"])
+    dev_run.add_argument("--ollama-url", default="http://127.0.0.1:11434")
+    dev_score = commands.add_parser("score-development", help="Offline assessment using external development keys")
+    dev_score.add_argument("--bundle", type=Path, required=True)
+    dev_score.add_argument("--record", type=Path, required=True)
+    dev_score.add_argument("--annotation", type=Path, required=True)
+    dev_score.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "inventory":
@@ -79,6 +94,39 @@ def main(argv: list[str] | None = None) -> int:
             print("Paired texts and timing deltas saved; inspect configuration changes and reviewer scores.")
         elif args.command == "digest":
             print(digest(read_json(args.path)))
+        elif args.command == "prepare-development":
+            report = prepare_development(args.archive, args.out, args.reviewer)
+            print(json.dumps({k: v["readiness"] for k, v in report["instances"].items()}))
+        elif args.command == "run-development":
+            from quality.protocol import file_digest
+            bundle = read_json(args.bundle / "bundle.json")
+            args.out.mkdir(parents=True, exist_ok=False)
+            cases = {c["id"]: c for c in manifest()["cases"]}
+            summary = []
+            for identifier, instance in bundle["instances"].items():
+                if args.instance and identifier != args.instance:
+                    continue
+                for index, item in enumerate(instance["plans"], 1):
+                    path = (args.bundle / item["path"]).resolve()
+                    if not path.is_relative_to(args.bundle.resolve()) or file_digest(path) != item["sha256"]:
+                        raise ValueError("Prepared plan integrity failure")
+                    record = run_plan(ROOT, args.out / f"{identifier}.q{index}", read_json(path), cases,
+                                      args.bundle / "inputs", args.ollama_url)
+                    summary.append({"instance_id": identifier, "question": index,
+                                    "execution_status": record["execution_status"]})
+            write_new(args.out / "summary.json", summary)
+            print(json.dumps(summary))
+            return 0 if summary and all(r["execution_status"] == "complete" for r in summary) else 2
+        elif args.command == "score-development":
+            record = read_json(args.record)
+            identifier = record.get("instance_id")
+            if identifier not in {"D01", "D02", "D03", "D04"}:
+                raise ValueError("Only supplied development instances are accepted")
+            result = assess_development(record, read_json(args.bundle / f"evaluator/{identifier}.json"),
+                read_json(args.annotation), read_json(args.bundle / "bundle.json"))
+            write_new(args.out, result)
+            print(json.dumps({k: result[k] for k in ("status", "critical_errors", "pending")}))
+            return 0 if result["status"] == "reviewed_pass" else 2
     except (OSError, ValueError, KeyError, StopIteration) as exc:
         print(f"evaluation error: {exc}", file=sys.stderr)
         return 2

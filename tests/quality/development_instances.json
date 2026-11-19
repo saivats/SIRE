@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "source_baseline": "d7051e449e223846724b722136cbb99695c0e7d0",
+  "instances": {
+    "D01": {"primary_case": "C2", "related_cases": ["B1", "C2", "E2", "I1"], "categories": ["B", "C", "E", "I"]},
+    "D02": {"primary_case": "B1", "related_cases": ["B1", "C2", "D1", "I1"], "categories": ["B", "C", "D", "I"]},
+    "D03": {"primary_case": "D1", "related_cases": ["B2", "C2", "D1", "E2"], "categories": ["B", "C", "D", "E"]},
+    "D04": {"primary_case": "C1", "related_cases": ["C1", "C2", "D1", "E2", "I1"], "categories": ["C", "D", "E", "I"]}
+  },
+  "required_asset_roles": ["sensor_csv", "inspection_image", "work_orders", "maintenance_document"],
+  "note": "Related development instances, not replacements or claims of full original-case coverage. No fixtures, requests or answers are stored in this mapping."
+}

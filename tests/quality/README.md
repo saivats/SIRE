@@ -183,3 +183,43 @@ accuracy percentage from this purposive 27-definition suite or from evaluator un
 The CLI never marks a definition passed from test-harness success, never repairs an
 answer and never executes holdout plans. Exact Windows commands and current limits
 are in `docs/FINAL_LLM_QUALITY.md`.
+
+## Supplied development instances
+
+Use the current Windows procedure at the top of `docs/FINAL_LLM_QUALITY.md`.
+`prepare-development` accepts the development archive, preserves its bytes in
+an external directory, and writes one plan per numbered scenario question.
+The twelve plans use separate fresh conversations. They exercise the ordinary
+chat router with original mixed evidence. They do not exercise multi-turn memory.
+Each request identifies the files as synthetic, retains the scenario question and
+requests sources and uncertainty. All image-to-asset links default to unverified.
+The original 27 case definitions remain the comparison framework. Mapping means
+partial coverage of a behavior, not completion of every variant of a parent case.
+
+Only `inputs/` (four CSVs, four JPEGs, four workbooks and five PDFs) is an upload
+root. `plans/` has questions and source hashes. `bundle.json` records the ZIP
+and member hashes, plan hashes and readiness. `original/` includes evaluator
+material and the supplied verifier. `evaluator/` contains private keys and
+numeric catalogs. Keep the whole bundle external. Only use the development ZIP.
+
+For a completed record, run `digest` to bind the annotation. Prepare a private
+review JSON with `record_digest`, `reviewer`, `numeric_claims`, `manual_findings`,
+`all_claims_reviewed`, `qualitative_rules_reviewed`, `source_entailment_reviewed`,
+`main_scores` and `development_scores`. Copy each actual number into a claim
+with the matched catalog `fact_id`, verbatim value, unit (normalize only a
+documented equivalent), asset_id, column, statistic and resolved source_ref.
+Review the source bytes and actual row/page/sheet locators. Add observed unsupported
+claims, omissions, bad links and scope violations as findings with code, detail
+and critical boolean. Evaluate applicable supplied qualitative rules against the
+particular question. Document inapplicable conditions in the review. Where the
+D03 prose description is ambiguous, compare direction per asset with its own
+rows. The CSV contains a pressure-drop column for both assets.
+
+Score each development dimension 0–3 using the four names in the supplied key.
+Use the existing eight main dimensions at 0–4. The two score dictionaries stay
+separate. Missing review leaves the case pending. A critical error fails acceptance.
+Record digest binding protects the annotation/record pairing. Reviewers must still
+verify source entailment, since resolving an ID alone cannot establish that it
+supports a claim. Retrieval traces and evidence lookups retain resolution errors.
+Provider-only tokens withheld upstream remain unavailable. Compare per-question
+records with the existing `compare` command and compare each rubric separately.
