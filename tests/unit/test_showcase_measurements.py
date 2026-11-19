@@ -50,3 +50,23 @@ A,2025-01-01T01:00Z,3,21,
             result = client.post("/api/v1/evidence/verify", json={"conversation_id": cid, "claims": claims})
             result.raise_for_status()
             self.assertEqual([c["status"] for c in result.json()["verifications"]], ["verified_exact", "contradicted", "verified_exact", "contradicted"])
+
+    def test_narrated_quantities_require_the_cited_asset(self):
+        from app.evidence.ledger import Ledger
+        from app.evidence.verification import screen_numeric_prose
+        from app.storage.database import Store
+
+        with TemporaryDirectory() as tmp:
+            ledger = Ledger(Store(Path(tmp) / "test.sqlite3"))
+            rows = [
+                {"asset_id": "PUMP-011", "channel": "pressure", "value": v,
+                 "observed_at": f"2025-01-01T0{i}:00:00+00:00", "unit": "bar"}
+                for i, v in enumerate([4, 3, 2])
+            ]
+            record = ledger.add("real_uploaded", "Test pressure", {"rows": rows},
+                                {"asset_id": "PUMP-011", "channel": "pressure"}, unit="bar")
+            cite = f"[{record.id}]"
+            for text in ("PUMP-011 full-series mean 3 bar", "PUMP-011 first-to-last decrease 50%"):
+                self.assertEqual(screen_numeric_prose(f"{text} {cite}", ledger)[0]["status"], "verified_exact")
+            with self.assertRaises(SireError):
+                screen_numeric_prose(f"PUMP-012 full-series mean 3 bar {cite}", ledger)

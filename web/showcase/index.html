@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Evidence review · SIRE</title>
+<style>
+:root{font:16px/1.5 system-ui,sans-serif;color:#172c30;background:#f4f6f4}*{box-sizing:border-box}body{margin:0}
+header{background:#13383c;color:white;padding:1rem max(5vw,1rem);display:flex;justify-content:space-between;align-items:center}header strong{letter-spacing:.12em}header a{color:white}
+main{max-width:75rem;margin:auto;padding:2rem max(3vw,1rem)}h1{margin:.4rem 0;font:2.7rem Georgia,serif}h2{font:1.6rem Georgia,serif}
+section{margin:1.25rem 0;background:white;border:1px solid #c8d5d2;border-radius:.5rem;padding:1.3rem}button{background:#15564e;color:white;border:0;border-radius:.35rem;padding:.7rem 1rem;font:inherit;cursor:pointer}button:disabled{background:#526664;cursor:default}
+input,textarea{display:block;width:100%;padding:.65rem;margin:.3rem 0 .9rem;border:1px solid #829692;border-radius:.3rem;font:inherit}summary,a{color:#10584f;cursor:pointer}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:26rem;overflow:auto}details{margin:.6rem 0}table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}td,th{padding:.45rem;border-bottom:1px solid #d9e1df;text-align:left}th{font-size:.85rem}.scroll{overflow:auto}
+article{border-top:1px solid #cbd7d4;margin-top:1rem}#status{font-weight:bold}button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #dd8124}small{display:block;overflow-wrap:anywhere}
+</style></head><body><header><strong>SIRE</strong><a id="workspace" hidden href="/chat">Chat workspace</a></header><main>
+<h1>Evidence review</h1><p>Inspect uploaded engineering records and check measured changes against their source rows.</p>
+<section><h2>Source files</h2><form id="upload"><label for="files">Choose up to six evidence files from one scenario</label><input id="files" type="file" multiple required accept=".csv,.xlsx,.pdf,.jpg,.jpeg,.png,.webp"><button id="inspect">Inspect sources</button></form>
+<p id="status" role="status"></p></section>
+<section id="observations" hidden><h2>Observations</h2><p>Offline evidence evaluation · deterministic extraction. Asset labels and physical cause require independent confirmation.</p><div id="records"></div></section>
+<section><h2>Investigation</h2><p id="provider" role="status">Checking the local backend…</p>
+<form id="investigate"><label for="question">Engineering question</label><textarea required maxlength="8000" rows="2" id="question">Which observations support or contradict a possible cause, and what evidence is missing?</textarea>
+<button id="run" disabled>Request investigation</button> <button type="button" id="cancel" hidden>Stop investigation</button></form>
+<p id="progress" role="status"></p><div id="answer"></div></section></main><script type="module" src="/showcase/review.mjs"></script></body></html>

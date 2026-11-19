@@ -56,7 +56,12 @@ def parse(content: bytes, suffix: str) -> list[dict] | None:
     try:
         if suffix == ".csv":
             reader = csv.DictReader(io.StringIO(content.decode("utf-8-sig")))
-            if reader.fieldnames and len(reader.fieldnames) != len(set(reader.fieldnames)):
+            headers = reader.fieldnames or []
+            typed = REQUIRED.issubset(headers) or (
+                {"asset_id", "timestamp_utc"}.issubset(headers)
+                and any(field in SETTINGS["measurement_wide_fields"] for field in headers)
+            )
+            if typed and len(headers) != len(set(headers)):
                 raise ValueError("Ambiguous duplicate column names")
             rows = list(reader)
         else:
@@ -259,8 +264,8 @@ def render_profiles(profiles: list[dict]) -> str:
     lines = [
         "## Uploaded measurement statistics",
         "Uploader-declared units and asset association remain unverified. These are descriptive window statistics, not point measurements, fault confirmation or NASA RUL.",
-        "| Asset / channel | Baseline mean | Recent mean | Unit / count | Source |",
-        "| --- | ---: | ---: | --- | --- |",
+        "| Asset / channel | First 24 mean | Last 6 mean | Full mean | First-to-last change | Unit / count | Source |",
+        "| --- | ---: | ---: | ---: | ---: | --- | --- |",
     ]
     for profile in profiles:
         if profile.get("synthetic_declared"):
@@ -272,8 +277,12 @@ def render_profiles(profiles: list[dict]) -> str:
             def safe(value: object) -> str:
                 return str(value).replace("|", "\\|").replace("\n", " ")
 
+            change = group.get("endpoint_delta")
+            displayed_change = f"{change:.8g}" if change is not None else "unavailable"
+            full = group.get("full_mean")
+            displayed_mean = f"{full:.8g}" if full is not None else "unavailable"
             lines.append(
-                f"| {safe(group['asset_id'])} / {safe(group['channel'])} | {group['baseline_mean']:.8g} | {group['recent_mean']:.8g} | {safe(group['unit'])} / {group['count']} | [{group['evidence_id']}] |"
+                f"| {safe(group['asset_id'])} / {safe(group['channel'])} | {group['baseline_mean']:.8g} | {group['recent_mean']:.8g} | {displayed_mean} | {displayed_change} | {safe(group['unit'])} / {group['count']} | [{group['evidence_id']}] |"
             )
     return (
         "\n\n".join(lines[:2])

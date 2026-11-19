@@ -47,3 +47,7 @@ test('one speech chunk is prepared ahead while the current chunk plays and stop 
  assert.equal(audio.playCalls,1);assert.equal(calls.filter(url=>url.endsWith('/speak')).length,2);assert.equal(audio.ended,false);
  session.stop();await finished;assert.equal(audio.playCalls,1);
 });
+
+test('narration omits tabular rows while retaining the explanation',()=>{
+  assert.equal(safeSpeechText('Check source.\n| Point | Time |\n| --- | --- |\n| 2 | 10 |\nRead the report.'),'Check source. Read the report.');
+});

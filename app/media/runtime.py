@@ -203,13 +203,6 @@ def run(
     started = time.monotonic()
     if operation not in {"asr", "tts", "video"}:
         raise ValueError("Unsupported media operation")
-    package = "cv2" if operation == "video" else "sherpa_onnx"
-    if not (DEPENDENCIES / package).is_dir():
-        raise SireError(
-            "media_runtime_missing",
-            "Optional local runtime is missing. Run scripts/setup_media.py.",
-            503,
-        )
     if operation != "video":
         profile = (
             payload.get("profile", POLICY.get("asr_default_profile", "asr"))
@@ -266,6 +259,13 @@ def run(
                     "scope": "Cached request; original synthesis worker counters are retained separately.",
                 }
                 return cached
+        package = "cv2" if operation == "video" else "sherpa_onnx"
+        if not (DEPENDENCIES / package).is_dir():
+            raise SireError(
+                "media_runtime_missing",
+                "Optional local runtime is missing. Run scripts/setup_media.py.",
+                503,
+            )
         grant = scheduler_stack.enter_context(
             SCHEDULER.lease(
                 operation,
@@ -378,3 +378,4 @@ def run(
             if identifier:
                 with JOB_LOCK:
                     JOBS.pop(identifier, None)
+

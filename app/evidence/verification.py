@@ -314,28 +314,27 @@ def screen_numeric_prose(text: str, ledger: Ledger) -> list[dict]:
         stamp = STAMP.search(line)
         for match in NUMBER_UNIT.finditer(line):
             prefix = line[max(0, match.start() - 60) : match.start()].lower()
-            statistic = (
-                "percent_delta"
-                if match[2] in {"%", "percent"}
-                else (
-                    "baseline_mean"
-                    if "baseline" in prefix
-                    else (
-                        "delta"
-                        if "delta" in prefix
-                        else (
-                            "recent_mean"
-                            if any(
-                                word in prefix for word in ["mean", "average", "recent"]
-                            )
-                            else None
-                        )
-                    )
-                )
-            )
+            endpoint = re.search(r"\b(?:first[- ]to[- ]last|endpoint)\b", prefix)
+            if match[2] in {"%", "percent"}:
+                statistic = "endpoint_percent_delta" if endpoint else "percent_delta"
+            elif endpoint:
+                statistic = "endpoint_delta"
+            elif re.search(r"\b(?:full[- ]series|overall|full)\s+(?:mean|average)\b", prefix):
+                statistic = "full_mean"
+            elif "baseline" in prefix:
+                statistic = "baseline_mean"
+            elif "delta" in prefix:
+                statistic = "delta"
+            elif any(word in prefix for word in ("mean", "average", "recent")):
+                statistic = "recent_mean"
+            else:
+                statistic = None
+            assets = set(re.findall(r"(?<![\w-])(?:[A-Z][A-Z0-9]*-)+\d+[A-Z]?(?![\w-])", line))
+            if len(assets) > 1:
+                raise SireError("unsupported_numeric_claim", "A numerical statement names multiple assets. Report one asset per cited statement.", 503)
             claimed_value = float(match[1])
             if (
-                statistic == "percent_delta"
+                statistic in {"percent_delta", "endpoint_percent_delta"}
                 and claimed_value > 0
                 and re.search(
                     r"\b(?:decreas\w*|dropp?\w*|fell|fall\w*|reduc\w*|declin\w*)\b",
@@ -346,6 +345,7 @@ def screen_numeric_prose(text: str, ledger: Ledger) -> list[dict]:
             claim = Claim(
                 category="derived_statistic" if statistic else "direct_observation",
                 source_ids=identifiers[:8],
+                asset_id=next(iter(assets), None),
                 text=line[:1600],
                 value=claimed_value,
                 unit=match[2],
@@ -369,7 +369,7 @@ def verify_profile_claims(profiles: list[dict], ledger: Ledger) -> list[dict]:
     checks = []
     for profile in profiles:
         for group in profile["groups"]:
-            for statistic in ["baseline_mean", "recent_mean", "delta", "count"]:
+            for statistic in ["baseline_mean", "recent_mean", "delta", "count", "full_mean", "endpoint_delta", "endpoint_percent_delta"]:
                 if group.get(statistic) is None:
                     continue
                 window = (
@@ -389,7 +389,7 @@ def verify_profile_claims(profiles: list[dict], ledger: Ledger) -> list[dict]:
                     source_ids=[group["evidence_id"]],
                     text=f"{group['asset_id']} / {group['channel']}: {statistic}",
                     value=group[statistic],
-                    unit="count" if statistic == "count" else group["unit"],
+                    unit={"count": "count", "endpoint_percent_delta": "%"}.get(statistic, group["unit"]),
                     statistic=statistic,
                     asset_id=group["asset_id"],
                     channel=group["channel"],

@@ -248,6 +248,7 @@ def create_app(
             "application_version": application.version,
             "loaded_source_sha256": request.app.state.runtime_identity,
             "ml_ready": request.app.state.ml_ready,
+            "web_ready": (config.WEB_DIST / "index.html").is_file(),
             **request.app.state.chat.provider.health(),
             "mode": "local",
             "hosted_providers": "disabled",
@@ -261,9 +262,19 @@ def create_app(
             rows = adapter.list_models()
         except SireError:
             rows = []
+        try:
+            reference = json.loads((config.ROOT / "docs/OLLAMA_MODELS.json").read_text(encoding="utf-8"))
+            expected = {m["name"]: m["digest"] for m in reference["models"]}
+        except (OSError, ValueError, KeyError, TypeError):
+            expected = {}
         return {
             "provider": "ollama",
             "models": rows,
+            "reference_digest_matches": {
+                name: bool(expected.get(name)) and
+                [row.get("digest") for row in rows if row.get("name") == name] == [expected[name]]
+                for name in (config.SETTINGS["text_model"], config.SETTINGS["vision_model"])
+            },
             "health": adapter.health(),
             "configured_text": config.SETTINGS["text_model"],
             "configured_vision": config.SETTINGS["vision_model"],
@@ -647,6 +658,23 @@ def create_app(
         """Retrieve an immutable saved prediction without rerunning a model."""
         return request.app.state.store.result("predictions", identifier)
 
+    showcase = config.ROOT / "web" / "showcase"
+
+    @application.get("/showcase", include_in_schema=False)
+    def showcase_page() -> FileResponse:
+        """Serve the evidence review even when the optional React build is absent."""
+        return FileResponse(showcase / "index.html")
+
+    @application.get("/showcase/review.mjs", include_in_schema=False)
+    def showcase_script() -> FileResponse:
+        """Serve only the review module, without exposing the repository tree."""
+        return FileResponse(showcase / "review.mjs", media_type="text/javascript")
+
+    @application.get("/showcase/presentation.mjs", include_in_schema=False)
+    def showcase_presentation() -> FileResponse:
+        """Deliver the saved-investigation presentation shared with contract tests."""
+        return FileResponse(showcase / "presentation.mjs", media_type="text/javascript")
+
     static = config.WEB_DIST
     if (static / "static").is_dir():
         application.mount(
@@ -664,3 +692,4 @@ def create_app(
 
 
 app = create_app()
+

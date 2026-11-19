@@ -63,6 +63,18 @@ def entry(model_id: str) -> dict[str, Any]:
     raise SireError("unknown_model", "Unknown model ID.", 404)
 
 
+def compatible_entry(model_id: str, dataset: str, task: str) -> dict[str, Any]:
+    """Reject mismatched domains independently of native artifacts or input availability."""
+    selected = entry(model_id)
+    if selected["dataset"] != dataset:
+        raise SireError("dataset_mismatch", "Model and history datasets differ.")
+    if selected["task"] != task:
+        raise SireError(
+            "task_mismatch", "Anomaly scores and RUL estimates use separate tools."
+        )
+    return selected
+
+
 def verify_integrity() -> int:
     """Check all captured inference files against the pre-migration byte manifest."""
     records = manifest()["integrity_files"]
@@ -90,13 +102,7 @@ def predict(
 ) -> dict[str, Any]:
     """Execute original prediction in a serial CPU process with a hard timeout."""
     with SCHEDULER.lease("native_rul", model=model_id, cancelled=cancel_event):
-        selected = entry(model_id)
-        if selected["dataset"] != dataset:
-            raise SireError("dataset_mismatch", "Model and history datasets differ.")
-        if selected["task"] != task:
-            raise SireError(
-                "task_mismatch", "Anomaly scores and RUL estimates use separate tools."
-            )
+        selected = compatible_entry(model_id, dataset, task)
         history = validate_history(history)
         if not INFERENCE_LOCK.acquire(blocking=False):
             raise SireError(
@@ -199,3 +205,4 @@ def predict(
                         input_stream.close()
                 finally:
                     INFERENCE_LOCK.release()
+

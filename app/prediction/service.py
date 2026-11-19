@@ -23,6 +23,7 @@ def run(
             "invalid_source",
             "Choose exactly one demonstration asset or compatible CSV attachment.",
         )
+    selected = hub.compatible_entry(model_id, dataset, task)
     frame = (
         telemetry.asset_history(asset_id, dataset)
         if asset_id
@@ -35,7 +36,6 @@ def run(
         task,
         **({"cancel_event": cancel_event} if cancel_event is not None else {}),
     )
-    selected = hub.entry(model_id)
     result = {
         "source_type": "model_generated",
         "input_source_type": "nasa_simulation" if asset_id else "real_uploaded",
@@ -72,3 +72,4 @@ def run(
         )
     store.save_result("predictions", result)
     return result
+

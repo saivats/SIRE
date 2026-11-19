@@ -527,13 +527,13 @@ async def transcribe(
     from app.media.runtime import model_files, POLICY, DEPENDENCIES
 
     selected_profile = profile or POLICY.get("asr_default_profile", "asr")
-    model_files(selected_profile, verify=False)
     if not (DEPENDENCIES / "sherpa_onnx").is_dir():
         raise SireError(
             "asr_unavailable",
             "No configured local ASR runtime/model; type the question or run scripts/setup_media.py.",
             503,
         )
+    model_files(selected_profile, verify=False)
     return await asyncio.to_thread(
         transcribe_bytes, content, None, suffix, None, profile
     )
@@ -579,3 +579,4 @@ def cancel_voice(body: MediaCancel) -> dict:
     from app.media.runtime import cancel
 
     return {"cancellation_requested": cancel(body.request_id)}
+
