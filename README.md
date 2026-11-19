@@ -1,5 +1,7 @@
 # SIRE V3.2 investigation workspace
 
+For the evidence showcase, run `.\scripts\start_sire.ps1 -Setup` and open the printed `/showcase` URL. Add `-BuildWeb` for the full React workspace. See the [showcase runbook, validation results and recovery commands](docs/SHOWCASE_ENGINEERING.md).
+
 V3.2 is running locally at **http://127.0.0.1:8000**. It connects incident context, sensor history/replay, evidence and competing hypotheses, retrospective case memory, fleet/what-if, actual NASA model comparison, execution traces and real PDF/Markdown exports to the existing chat. Local English speech and bounded audio/video ingestion are implemented with isolated open-source workers.
 
 Final verification: **198 tests passed / 139.21s**, two documented dependency warnings; Ruff/Black and TypeScript/Vite passed. All **813** protected native hashes match. Actual Qwen, four FD defaults/comparison, photo/document hypotheses, recorded-file speech round trip, sampled-frame vision and historical/report paths were exercised. All existing database tables survived cutover exactly. Browser/mobile and physical microphone/speaker interaction remain **unverified**; source-valid model claims can still be weak or wrong. This is a local prototype, not a validated industrial diagnostic system.

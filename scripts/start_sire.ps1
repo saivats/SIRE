@@ -6,8 +6,13 @@ $qa = Join-Path $env:LOCALAPPDATA 'SIRE-Showcase'
 $venv = Join-Path $qa 'venv'
 $python = Join-Path $venv 'Scripts/python.exe'
 New-Item -ItemType Directory -Force -Path $qa | Out-Null
+$previousEnv = @{}
+foreach ($name in @('SIRE_STATE_DIR','SIRE_WEB_BUILD','OLLAMA_BASE_URL','SIRE_TEXT_MODEL','SIRE_VISION_MODEL')) {
+    $previousEnv[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+}
 Push-Location $root
 try {
+    $env:SIRE_WEB_BUILD = 'dist'
     if ($Setup) {
         if (!(Test-Path $python)) {
             & py -3.11 -m venv $venv
@@ -70,4 +75,9 @@ try {
         while (!$server.HasExited) { Start-Sleep -Seconds 1 }
         if ($server.ExitCode) { throw "Backend exited ($($server.ExitCode)). See $run/stderr.log" }
     } finally { if (!$server.HasExited) { $server.Kill(); $server.WaitForExit() }; $server.Dispose() }
-} finally { Pop-Location }
+} finally {
+    foreach ($name in $previousEnv.Keys) {
+        [Environment]::SetEnvironmentVariable($name, $previousEnv[$name], 'Process')
+    }
+    Pop-Location
+}

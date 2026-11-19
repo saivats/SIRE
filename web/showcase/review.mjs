@@ -14,6 +14,7 @@ function element(tag, text) {
 function link(label, path) {
   const node = element('a', label);
   node.href = path;
+  if (path.startsWith(api + '/')) { node.target = '_blank'; node.rel = 'noopener'; }
   return node;
 }
 function details(label, text) {
@@ -93,6 +94,8 @@ el('upload').onsubmit = async event => {
         cards.set(source.id, card);
         card.append(element('small','Original SHA-256 · ' + source.metadata.original_sha256),
           link('Inspect attachment record', api + '/evidence/' + encodeURIComponent(source.id)));
+        const content = api + '/attachments/' + encodeURIComponent(source.id) + '/content';
+        card.append(element('br'), link(source.kind === 'image' ? 'Inspect stored image' : 'Open stored file', content));
         if (source.metadata.measurement_schema) await profile(card, source);
         else if (file.name.toLowerCase().endsWith('.csv')) card.append(element('p','CSV accepted. No supported typed measurement schema was identified.'));
       } catch (err) { issues++; card.append(element('p', err.message)); }

@@ -1,6 +1,8 @@
 # SIRE LLM quality — Phase 2A handoff
 
-## Current checkpoint — post-merge Phase 2A
+The full-stack candidate and its fresh regression results, Windows launch commands and source-only demonstration are in [Showcase engineering](SHOWCASE_ENGINEERING.md). The original pre-tuning evaluation checkpoint remains available at commit `20496baf61383527c42f93da08887b706a3a79cc`.
+
+## Historical checkpoint — post-merge Phase 2A
 
 The source baseline for the next prompt experiment is
 `d7051e449e223846724b722136cbb99695c0e7d0`, upstream PR #1 and fork main.
